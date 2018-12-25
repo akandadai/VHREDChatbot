@@ -5,13 +5,22 @@ from gensim.corpora import Dictionary
 from keras.preprocessing import sequence
 import pickle as pkl
 
-#declare global variables
 
-Start_vector = np.zeros(300,)
-Unk_vector = np.random.randn(300,)
-Padding_vector = np.random.randn(300,)
-keep_n = 3000 #Size of dictionary
-word_vectors = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin.gz', binary=True)
+#declare global variables
+vector_size = 300
+vocab_size = 3000
+seq_length = 10
+word_vectors = None
+
+Start_vector = np.zeros(vector_size,)
+Unk_vector = np.random.randn(vector_size,)
+Padding_vector = np.random.randn(vector_size,)
+keep_n = vocab_size #Size of dictionary
+
+
+def load_word_vectors(File = 'GoogleNews-vectors-negative300.bin.gz'):
+    word_vectors = KeyedVectors.load_word2vec_format(File, binary=True)
+    return word_vectors
 
 
 
@@ -22,10 +31,10 @@ def splitting(text):
     words = [w.translate(table) for w in words]
     return words
 
-def padding(sequence):
-    while len(sequence) < 10:
+def padding(sequence, seq_length):
+    while len(sequence) < seq_length:
         sequence.append("<PAD>")
-    while len(sequence) > 10:
+    while len(sequence) > seq_length:
         sequence = sequence[:-1]
     return sequence
 
@@ -87,18 +96,36 @@ def collect(df,column,length):
     return output
 
 
+#Format and Map string to word vector
+def split_and_pad(String):
+    String_list = splitting(String)
+    String_list = padding(String_list, seq_length)
+    # Vectors = map_words_to_vectors(String_list)
+    return String_list
 
-def main ():
+
+def train_prep_default():
     Corpus = pd.read_csv(r"corpus.csv",encoding = "ISO-8859-1")
-    Corpus['Input'] = Corpus['Input'].astype(str).apply(splitting) #Makes the Input column a list of words
-    Corpus['Output'] = Corpus['Output'].astype(str).apply(splitting) #Makes the Output column a list of words
-    Corpus['Input'] = Corpus['Input'].apply(padding)
-    Corpus['Output'] = Corpus['Output'].apply(padding)
-    Corpus['Output_Vectors'] = Corpus['Output'].apply(map_words_to_vectors) #List of word vectors
+    Corpus['Input'] = Corpus['Input'].astype(str).apply(split_and_pad)
+    Corpus['Output'] = Corpus['Output'].astype(str).apply(split_and_pad)
     Corpus['Input_Vectors'] = Corpus['Input'].apply(map_words_to_vectors)
-    one_hot_vectors = np.array(indexing(Corpus,keep_n,10,3000))
-    Output = collect(Corpus,"Output_Vectors",3000)
-    Input = collect(Corpus,"Input_Vectors",3000)
-    return one_hot_vectors,Output,Input
+    Corpus['Output_Vectors'] = Corpus['Output'].apply(map_words_to_vectors)
+    one_hot_vectors = np.array(indexing(Corpus,keep_n,seq_length,vocab_size))
+    Output = collect(Corpus,"Output_Vectors",vocab_size)
+    Input = collect(Corpus,"Input_Vectors",vocab_size)
+    
+    return one_hot_vectors,Output,Input    
+
+
+def test_run ():
+    #Corpus = pd.read_csv(r"corpus.csv",encoding = "ISO-8859-1")
+    global word_vectors
+    word_vectors = load_word_vectors()
+    while True:
+        test = str(input("put some stuff here: "))
+        print(string_to_vec(test))
+
+    
+
 
 
